@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 
-# Configure logging BEFORE importing utils/core so basicConfig takes effect
+# Configura o logging ANTES de importar utils/core para que o basicConfig seja aplicado
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",

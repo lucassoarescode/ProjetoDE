@@ -1,6 +1,6 @@
 """
-Configuration and validation of all relevant parameters for the ProjetoDE pipeline.
-Loads and validates the config.yml file using Pydantic models.
+Configuracao e validacao de todos os parametros relevantes do pipeline ProjetoDE.
+Carrega e valida o arquivo config.yml usando modelos Pydantic.
 """
 
 from pathlib import Path
@@ -8,28 +8,28 @@ from typing import Dict, List
 from pydantic import BaseModel
 import yaml
 
-# Paths computed relative to this file's location (src/core.py → project root)
+# Caminhos calculados em relacao a localizacao deste arquivo (src/core.py → raiz do projeto)
 PACKAGE_ROOT: Path = Path(__file__).resolve().parent.parent
 ASSETS_PATH: Path = PACKAGE_ROOT / "assets"
 CONFIG_FILE_PATH: Path = ASSETS_PATH / "config.yml"
 
 
 class ApiConfig(BaseModel):
-    """Configuration for the randomuser.me API."""
+    """Configuracao da API randomuser.me."""
 
     url: str
     results: int
 
 
 class DatabaseConfig(BaseModel):
-    """Configuration for the SQLite database."""
+    """Configuracao do banco de dados SQLite."""
 
     filename: str
     table: str
 
 
 class AppConfig(BaseModel):
-    """Master configuration object for the pipeline."""
+    """Objeto de configuracao principal do pipeline."""
 
     api: ApiConfig
     database: DatabaseConfig
@@ -39,22 +39,22 @@ class AppConfig(BaseModel):
 
 def create_and_validate_config(cfg_path: Path = CONFIG_FILE_PATH) -> AppConfig:
     """
-    Load the YAML config file and validate it against the Pydantic schema.
+    Carrega o arquivo de configuracao YAML e valida contra o schema Pydantic.
 
     Args:
-        cfg_path: Path to the YAML configuration file.
+        cfg_path: Caminho para o arquivo de configuracao YAML.
 
     Returns:
-        A validated AppConfig instance.
+        Uma instancia validada de AppConfig.
 
     Raises:
-        OSError: If the config file is not found at the given path.
+        OSError: Se o arquivo de configuracao nao for encontrado no caminho informado.
     """
     try:
         with open(cfg_path, "r", encoding="utf-8") as conf_file:
             parsed_config = yaml.safe_load(conf_file)
     except FileNotFoundError:
-        raise OSError(f"Config file not found at: {cfg_path}")
+        raise OSError(f"Arquivo de configuracao nao encontrado em: {cfg_path}")
 
     config = AppConfig(**parsed_config)
     return config

@@ -1,6 +1,6 @@
 """
-Utility functions for the ProjetoDE data engineering pipeline.
-Handles data ingestion from API, validation, and preparation/storage.
+Funcoes utilitarias do pipeline de engenharia de dados do ProjetoDE.
+Responsavel pela ingestao de dados da API, validacao e preparacao/armazenamento.
 """
 
 import logging
@@ -15,14 +15,13 @@ from sqlalchemy import create_engine
 from core import AppConfig, ASSETS_PATH
 
 
-
 # ---------------------------------------------------------------------------
-# Pydantic schema used by validation_inputs
+# Schema Pydantic utilizado pela funcao validation_inputs
 # ---------------------------------------------------------------------------
 
 
 class UserRecord(BaseModel):
-    """Schema for a single user record after column renaming."""
+    """Schema para um registro de usuario apos renomeacao das colunas."""
 
     genero: str
     titulo: str
@@ -39,7 +38,7 @@ class UserRecord(BaseModel):
     @field_validator("genero")
     @classmethod
     def validate_genero(cls, value: str) -> str:
-        """Ensure gender is one of the expected values from the API."""
+        """Verifica se o genero e um dos valores esperados pela API."""
         if value not in ("male", "female"):
             raise ValueError(
                 f"genero deve ser 'male' ou 'female', recebeu '{value}'"
@@ -49,7 +48,7 @@ class UserRecord(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str) -> str:
-        """Basic check that the field contains an '@' character."""
+        """Verifica basicamente se o campo contem o caractere '@'."""
         if "@" not in value:
             raise ValueError(f"email invalido: '{value}'")
         return value
@@ -57,7 +56,7 @@ class UserRecord(BaseModel):
     @field_validator("idade")
     @classmethod
     def validate_idade(cls, value: int) -> int:
-        """Ensure age is a positive integer."""
+        """Verifica se a idade e um inteiro positivo."""
         if value <= 0:
             raise ValueError(f"idade deve ser positiva, recebeu {value}")
         return value
@@ -65,7 +64,7 @@ class UserRecord(BaseModel):
     @field_validator("telefone")
     @classmethod
     def validate_telefone(cls, value: str) -> str:
-        """Ensure telephone contains only digits after cleaning."""
+        """Verifica se o telefone contem apenas digitos apos a limpeza."""
         if not re.fullmatch(r"\d+", value):
             raise ValueError(
                 f"telefone deve conter apenas digitos apos limpeza, recebeu '{value}'"
@@ -74,31 +73,31 @@ class UserRecord(BaseModel):
 
 
 class MultipleUserSchema(BaseModel):
-    """Wrapper for validating a list of user records at once."""
+    """Objeto agrupador para validar uma lista de registros de usuarios de uma vez."""
 
     inputs_raw: List[UserRecord]
 
 
 # ---------------------------------------------------------------------------
-# Pipeline functions
+# Funcoes do pipeline
 # ---------------------------------------------------------------------------
 
 
 def ingestion(configs: AppConfig) -> pd.DataFrame:
     """
-    Consume data from the randomuser.me public API and return a flat DataFrame.
+    Consome dados da API publica randomuser.me e retorna um DataFrame plano.
 
-    Makes a GET request to the configured API URL requesting at least 10 results,
-    then normalises the nested JSON structure into a tabular format.
+    Realiza uma requisicao GET para a URL configurada solicitando ao menos 10 resultados,
+    em seguida normaliza a estrutura JSON aninhada para formato tabular.
 
     Args:
-        configs: Validated application configuration object.
+        configs: Objeto de configuracao validado da aplicacao.
 
     Returns:
-        A pandas DataFrame with one row per user and one column per nested field.
+        DataFrame pandas com uma linha por usuario e uma coluna por campo aninhado.
 
     Raises:
-        requests.HTTPError: If the API returns a non-2xx status code.
+        requests.HTTPError: Se a API retornar um status code diferente de 2xx.
     """
     url: str = configs.api.url
     results: int = configs.api.results
@@ -117,21 +116,21 @@ def ingestion(configs: AppConfig) -> pd.DataFrame:
 
 def validation_inputs(df: pd.DataFrame, configs: AppConfig) -> pd.DataFrame:
     """
-    Validate a prepared DataFrame against the expected schema before persisting.
+    Valida um DataFrame preparado contra o schema esperado antes de persistir.
 
-    Each row is checked against the UserRecord Pydantic model. If any row fails
-    validation the error details are written to the log file and a ValueError is
-    raised to interrupt the pipeline. On success, a confirmation message is logged.
+    Cada linha e verificada contra o modelo Pydantic UserRecord. Se alguma linha falhar
+    na validacao, os detalhes do erro sao gravados no arquivo de log e um ValueError e
+    lancado para interromper o pipeline. Em caso de sucesso, uma mensagem de confirmacao e registrada.
 
     Args:
-        df: DataFrame that has already been renamed and cleaned by preparation().
-        configs: Validated application configuration object (reserved for future use).
+        df: DataFrame ja renomeado e limpo pela funcao preparation().
+        configs: Objeto de configuracao validado da aplicacao (reservado para uso futuro).
 
     Returns:
-        The original DataFrame unchanged when all rows pass validation.
+        O DataFrame original sem alteracoes quando todas as linhas passam na validacao.
 
     Raises:
-        ValueError: If one or more rows do not conform to the expected schema.
+        ValueError: Se uma ou mais linhas nao estiverem em conformidade com o schema esperado.
     """
     records = df.replace({float("nan"): None}).to_dict(orient="records")
 
@@ -149,42 +148,41 @@ def validation_inputs(df: pd.DataFrame, configs: AppConfig) -> pd.DataFrame:
 
 def preparation(df: pd.DataFrame, configs: AppConfig) -> None:
     """
-    Transform the raw ingested DataFrame and persist it to a SQLite database.
+    Transforma o DataFrame bruto ingerido e persiste em um banco de dados SQLite.
 
-    Steps performed:
-        1. Rename columns according to the mapping in config.yml.
-        2. Select only the configured subset of columns.
-        3. Remove special characters from the 'telefone' column (keep digits only).
-        4. Convert 'cep' (postcode) values to string to handle mixed types.
-        5. Validate the cleaned data via validation_inputs().
-        6. Adjust column data types (idade → int, data_nascimento → datetime).
-        7. Save the final DataFrame to the configured SQLite table.
+    Etapas realizadas:
+        1. Renomeia colunas conforme o mapeamento definido no config.yml.
+        2. Seleciona apenas o subconjunto de colunas configurado.
+        3. Remove caracteres especiais da coluna 'telefone' (mantem apenas digitos).
+        4. Valida os dados limpos via validation_inputs().
+        5. Ajusta os tipos das colunas (idade -> int, data_nascimento -> datetime).
+        6. Salva o DataFrame final na tabela SQLite configurada.
 
     Args:
-        df: Raw DataFrame returned by ingestion().
-        configs: Validated application configuration object.
+        df: DataFrame bruto retornado pela funcao ingestion().
+        configs: Objeto de configuracao validado da aplicacao.
 
     Returns:
-        None. Side-effect: writes a SQLite database file under assets/.
+        None. Efeito colateral: grava um arquivo de banco SQLite em assets/.
     """
-    # 1. Rename columns
+    # 1. Renomeia as colunas
     df = df.rename(columns=configs.column_rename)
 
-    # 2. Select configured columns (ignore any that were not present in the API response)
+    # 2. Seleciona as colunas configuradas (ignora as que nao estiverem na resposta da API)
     available_cols = [col for col in configs.selected_columns if col in df.columns]
     df = df[available_cols].copy()
 
-    # 3. Remove special characters from phone — keep digits only
+    # 3. Remove caracteres especiais do telefone — mantem apenas digitos
     df["telefone"] = df["telefone"].str.replace(r"[^\d]", "", regex=True)
 
-    # 4. Validate before type conversion (data_nascimento is still a raw ISO string)
+    # 4. Valida antes da conversao de tipos (data_nascimento ainda e string ISO bruta)
     validation_inputs(df, configs)
 
-    # 5. Adjust data types
+    # 5. Ajusta os tipos de dados
     df["idade"] = df["idade"].astype(int)
     df["data_nascimento"] = pd.to_datetime(df["data_nascimento"], utc=True)
 
-    # 6. Save to SQLite
+    # 6. Salva no SQLite
     db_path = ASSETS_PATH / configs.database.filename
     engine = create_engine(f"sqlite:///{db_path}")
 
