@@ -1,0 +1,33 @@
+api:
+  url: https://randomuser.me/api/
+  results: 10
+
+database:
+  filename: usuarios.db
+  table: usuarios
+
+column_rename:
+  gender: genero
+  name.title: titulo
+  name.first: primeiro_nome
+  name.last: sobrenome
+  email: email
+  dob.date: data_nascimento
+  dob.age: idade
+  phone: telefone
+  location.city: cidade
+  location.state: estado
+  location.country: pais
+
+selected_columns:
+  - genero
+  - titulo
+  - primeiro_nome
+  - sobrenome
+  - email
+  - data_nascimento
+  - idade
+  - telefone
+  - cidade
+  - estado
+  - pais
